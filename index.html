@@ -260,7 +260,14 @@ downloadTxtBtn.onclick=async ()=>{
   const blob = new Blob([lines.join('\n')], {type:'text/plain'});
   const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='mi_diario_salud.txt'; a.click(); URL.revokeObjectURL(a.href);
 };
-
+function colorHexToRGB(hex){
+  hex = hex.replace('#','');
+  const bigint = parseInt(hex, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return [r,g,b];
+}
 downloadPdfBtn.onclick=async ()=>{
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
@@ -279,6 +286,7 @@ downloadPdfBtn.onclick=async ()=>{
     y += splitText.length*8 + 6;
     if(y>270){doc.addPage(); y=10;}
   }
+  console.log("Generant PDF amb", rows.length, "entrades");
   doc.save('mi_diario_salud.pdf');
 };
 
