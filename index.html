@@ -75,6 +75,7 @@ footer{opacity:.6; font-size:12px; text-align:center; padding:20px}
         <button id="downloadPdfBtn" class="btn secondary" title="Descargar PDF">📄 PDF</button>
       </div>
     </div>
+    <input id="customDate" type="date" style="margin:10px 0; padding:8px; border-radius:8px; border:1px solid var(--ring)">
     <textarea id="entry" placeholder="Escribe aquí..."></textarea>
     <div class="actions">
       <button id="saveBtn" class="btn">Guardar</button>
@@ -198,14 +199,18 @@ saveBtn.onclick=async ()=>{
   if(!text){ alert('Escribe algo antes de guardar'); return; }
   const user = auth.currentUser; if(!user){ alert('Inicia sesión primero'); return; }
   try{
-    await addDoc(collection(db,'entries'),{
-      uid:user.uid,
-      text,
-      category:current.category,
-      color:current.color,
-      createdAt:serverTimestamp()
-    });
-    entryEl.value='';
+    // data triada per l’usuari
+const customDateEl = document.getElementById('customDate');
+let createdAt;
+
+if (customDateEl.value) {
+  // Si l’usuari ha posat una data, la guardem com Date
+  createdAt = new Date(customDateEl.value + "T12:00:00"); 
+} else {
+  // Si no, usem serverTimestamp (ara mateix)
+  createdAt = serverTimestamp();
+}
+    entryEl.value=''; customDateEl.value='';
   }catch(e){ alert('Error al guardar: '+e.message); }
 };
 
