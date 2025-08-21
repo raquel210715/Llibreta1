@@ -194,24 +194,48 @@ function startListening(uid){
   });
 }
 
-saveBtn.onclick=async ()=>{
+saveBtn.onclick = async () => {
   const text = entryEl.value.trim();
-  if(!text){ alert('Escribe algo antes de guardar'); return; }
-  const user = auth.currentUser; if(!user){ alert('Inicia sesión primero'); return; }
-  try{
-    // data triada per l’usuari
+  if (!text) {
+    alert('Escribe algo antes de guardar');
+    return;
+  }
+
+  const user = auth.currentUser;
+  if (!user) {
+    alert('Inicia sesión primero');
+    return;
+  }
+
+  try {
+    // Obtenim la data triada per l'usuari
     const customDateEl = document.getElementById('customDate');
     let createdAt;
 
     if (customDateEl.value) {
-      // Si l’usuari ha posat una data, la guardem com Date
-      createdAt = new Date(customDateEl.value + "T12:00:00"); 
+      // Si l’usuari ha posat una data, la convertim a Date amb hora 12:00
+      createdAt = new Date(customDateEl.value + "T12:00:00");
     } else {
-      // Si no, usem serverTimestamp (ara mateix)
+      // Si no, usem serverTimestamp
       createdAt = serverTimestamp();
     }
-    entryEl.value=''; customDateEl.value='';
-  }catch(e){ alert('Error al guardar: '+e.message); }
+
+    // Afegim la nota a Firestore
+    await addDoc(collection(db, 'entries'), {
+      uid: user.uid,
+      text: text,
+      color: current.color,
+      category: current.category,
+      createdAt: createdAt
+    });
+
+    // Netegem camps
+    entryEl.value = '';
+    customDateEl.value = '';
+
+  } catch (e) {
+    alert('Error al guardar: ' + e.message);
+  }
 };
 
 clearBtn.onclick=()=>entryEl.value='';
