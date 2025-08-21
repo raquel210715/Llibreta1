@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mi Diario Salud (Cloud)</title>
+<meta name="color-scheme" content="light dark" />
+<style>
+:root{
+  --bg:#f6f7fb; --card:#ffffff; --ink:#1f2937; --muted:#6b7280; --ring:#e5e7eb;
+  --yellow:#fde047; --green:#86efac; --blue:#93c5fd; --purple:#e9d5ff;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#0b1020; --card:#111827; --ink:#f3f4f6; --muted:#9ca3af; --ring:#1f2937; }
+}
+.avatar{
+  width:28px; height:28px; border-radius:50%; object-fit:cover;
+}
+*{box-sizing:border-box}
+body{margin:0; font-family:ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background:var(--bg); color:var(--ink);}
+header{position:sticky; top:0; z-index:10; background:var(--card); border-bottom:1px solid var(--ring); padding:10px 12px; display:flex; align-items:center; gap:12px;}
+.brand{font-weight:700; letter-spacing:.2px;}
+.spacer{flex:1}
+.btn{border:0; border-radius:12px; padding:10px 14px; background:#111827; color:#fff; cursor:pointer; font-weight:600; box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.btn.secondary{background:#374151}
+.btn.ghost{background:transparent; color:var(--ink)}
+.btn.icon{width:44px; height:44px; display:grid; place-items:center; border-radius:50%}
+.grid{max-width:960px; margin:20px auto; padding:0 14px}
+.card{background:var(--card); border:1px solid var(--ring); border-radius:18px; box-shadow:0 8px 30px rgba(2,8,20,0.05);}
+.composer{padding:16px}
+.row{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+textarea{width:100%; min-height:120px; resize:vertical; padding:14px 16px; border-radius:14px; border:1px solid var(--ring); outline:none; font-size:16px; background:transparent}
+.palette{display:flex; gap:10px}
+.sw{width:36px; height:36px; border-radius:50%; border:2px solid #1112; cursor:pointer; position:relative}
+.sw[data-active="true"]::after{content:""; position:absolute; inset:8px; border-radius:50%; border:2px solid #0008}
+.sw[title*="Amarillo"]{background:var(--yellow)}
+.sw[title*="Verde"]{background:var(--green)}
+.sw[title*="Azul"]{background:var(--blue)}
+.sw[title*="Lila"]{background:var(--purple)}
+.actions{display:flex; gap:10px; justify-content:flex-end; padding:10px 0}
+.list{margin-top:18px; padding:8px}
+.item{border-left:10px solid transparent; padding:12px 14px; border-radius:14px; border:1px solid var(--ring); margin-bottom:12px; background:var(--card)}
+.meta{display:flex; gap:8px; align-items:center; font-size:12px; color:var(--muted)}
+.tag{display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 8px; border-radius:999px; border:1px solid var(--ring);}
+.filters{padding:12px 16px; display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+input[type="date"], select, input.search{padding:10px 12px; border-radius:10px; border:1px solid var(--ring); background:transparent; color:var(--ink)}
+footer{opacity:.6; font-size:12px; text-align:center; padding:20px}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">📒 Mi Diario Salud</div>
+  <div class="spacer"></div>
+  <div class="login">
+    <img id="avatar" class="avatar" alt="" />
+    <span id="who" class="muted"></span>
+    <button id="signinBtn" class="btn secondary">Entrar con Google</button>
+    <button id="anonBtn" class="btn ghost">Entrar anónimo</button>
+    <button id="signoutBtn" class="btn" style="display:none">Salir</button>
+  </div>
+</header>
+
+<main class="grid">
+  <!-- Composer -->
+  <section class="card composer" aria-label="Editor de entrada">
+    <div class="row" style="justify-content:space-between">
+      <div class="palette" role="group" aria-label="Categorías">
+        <div class="sw" id="sw-yellow" title="Amarillo · Comida" data-color="yellow" data-category="comida"></div>
+        <div class="sw" id="sw-green" title="Verde · Deporte" data-color="green" data-category="deporte"></div>
+        <div class="sw" id="sw-blue" title="Azul · Síntomas/medicación" data-color="blue" data-category="sintomas_meds"></div>
+        <div class="sw" id="sw-purple" title="Lila · Síntomas EM" data-color="purple" data-category="sintomas_em"></div>
+      </div>
+      <div class="row">
+        <!-- Hem tret TXT; només PDF -->
+        <button id="downloadPdfBtn" class="btn secondary" title="Descargar PDF">📄 PDF</button>
+      </div>
+    </div>
+    <textarea id="entry" placeholder="Escribe aquí..."></textarea>
+    <div class="actions">
+      <button id="saveBtn" class="btn">Guardar</button>
+      <button id="clearBtn" class="btn ghost">Limpiar</button>
+    </div>
+  </section>
+
+  <!-- Filters -->
+  <section class="card filters">
+    <input id="fromDate" type="date" />
+    <input id="toDate" type="date" />
+    <select id="byCat">
+      <option value="">Todas las categorías</option>
+      <option value="comida">Amarillo · Comida</option>
+      <option value="deporte">Verde · Deporte</option>
+      <option value="sintomas_meds">Azul · Síntomas/medicación</option>
+      <option value="sintomas_em">Lila · Síntomas EM</option>
+    </select>
+    <input id="q" class="search" type="search" placeholder="Buscar texto..." />
+    <button id="applyFiltersBtn" class="btn ghost">Procesar</button>
+  </section>
+
+  <!-- List -->
+  <section class="card list" id="list"></section>
+
+  <footer>Guardado en la nube con Firebase · Funciona offline y sincroniza cuando vuelves a tener conexión.</footer>
+</main>
+
+<!-- jsPDF PRIMER, per assegurar disponibilitat quan fem clic -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+<!-- Firebase (Mòdul) -->
+<script type="module">
+const firebaseConfig = {
+  apiKey: "AIzaSyCo9Yp1KX0qksIcrQScIpKOREh8tfKFuLI",
+  authDomain: "llibreta210715.firebaseapp.com",
+  projectId: "llibreta210715",
+  storageBucket: "llibreta210715.firebasestorage.app",
+  messagingSenderId: "85382775730",
+  appId: "1:85382775730:web:e6bc697d70944b2ef01aab"
+};
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInAnonymously, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, addDoc, serverTimestamp, query, where, orderBy, onSnapshot, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+enableIndexedDbPersistence(db).catch(()=>{});
+
+const entryEl = document.getElementById('entry');
+const listEl = document.getElementById('list');
+const saveBtn = document.getElementById('saveBtn');
+const clearBtn = document.getElementById('clearBtn');
+const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+const pal = Array.from(document.querySelectorAll('.sw'));
+let current = { color:'yellow', category:'comida' };
+let unsub = null;
+let allEntries = []; // <-- memòria del darrer snapshot
+
+pal.forEach(sw => {
+  sw.addEventListener('click', ()=>{ 
+    pal.forEach(x=>x.dataset.active='false');
+    sw.dataset.active='true';
+    current.color=sw.dataset.color;
+    current.category=sw.dataset.category;
+    entryEl.style.borderLeft=`10px solid var(--${current.color})`;
+  });
+});
+pal[0].click();
+
+const signinBtn = document.getElementById('signinBtn');
+const anonBtn = document.getElementById('anonBtn');
+const signoutBtn = document.getElementById('signoutBtn');
+const who = document.getElementById('who');
+const avatar = document.getElementById('avatar');
+const provider = new GoogleAuthProvider();
+
+signinBtn.onclick = async ()=>{ try{ await signInWithPopup(auth, provider);}catch(e){ alert(e.message); } };
+anonBtn.onclick = async ()=>{ try{ const {user}=await signInAnonymously(auth); if(!user.displayName) await updateProfile(user,{displayName:'Anónimo'});}catch(e){ alert(e.message); } };
+signoutBtn.onclick = ()=>signOut(auth);
+
+onAuthStateChanged(auth, user=>{
+  if(user){
+    signinBtn.style.display='none';
+    anonBtn.style.display='none';
+    signoutBtn.style.display='inline-block';
+    who.textContent=user.displayName||user.email||'Usuario';
+    avatar.src=user.photoURL||'';
+    startListening(user.uid);
+  }else{
+    who.textContent='';
+    avatar.removeAttribute('src');
+    signinBtn.style.display='inline-block';
+    anonBtn.style.display='inline-block';
+    signoutBtn.style.display='none';
+    stopListening();
+    listEl.innerHTML='<div class="item" style="border-left-color:var(--blue)">Inicia sesión para ver/guardar tus notas en la nube.</div>';
+  }
+});
+
+function stopListening(){ if(unsub){unsub();unsub=null;} }
+
+function startListening(uid){
+  stopListening();
+  if(!uid) return;
+  const ref = collection(db,'entries');
+  const qRef = query(ref, where('uid','==',uid), orderBy('createdAt','desc'));
+  unsub = onSnapshot(qRef, snap=>{
+    allEntries = snap.docs.map(d=>({id:d.id, ...d.data()})); // <-- guardem
+    render(allEntries);
+  }, err => {
+    console.error('onSnapshot error:', err);
+    alert('Error leyendo tus notas. Revisa las reglas o índices de Firestore.');
+  });
+}
+
+saveBtn.onclick=async ()=>{
+  const text = entryEl.value.trim();
+  if(!text){ alert('Escribe algo antes de guardar'); return; }
+  const user = auth.currentUser; if(!user){ alert('Inicia sesión primero'); return; }
+  try{
+    await addDoc(collection(db,'entries'),{
+      uid:user.uid,
+      text,
+      category:current.category,
+      color:current.color,
+      createdAt:serverTimestamp()
+    });
+    entryEl.value='';
+  }catch(e){ alert('Error al guardar: '+e.message); }
+};
+
+clearBtn.onclick=()=>entryEl.value='';
+
+function labelFromCat(c){
+  return c==='comida'?'Amarillo · Comida':
+         c==='deporte'?'Verde · Deporte':
+         c==='sintomas_meds'?'Azul · Síntomas/medicación':
+         'Lila · Síntomas EM';
+}
+
+function toLocal(ts){
+  if(!ts) return {iso:'', pretty:'(sin fecha)'};
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return {iso:d.toISOString(), pretty:d.toLocaleString()};
+}
+
+function escapeHtml(str){
+  return str.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+}
+
+function applyFilters(list){
+  const fromEl = document.getElementById('fromDate');
+  const toEl = document.getElementById('toDate');
+  const byCatEl = document.getElementById('byCat');
+  const qEl = document.getElementById('q');
+
+  const from = fromEl.value ? new Date(fromEl.value) : null;
+  const to = toEl.value ? new Date(toEl.value+'T23:59:59') : null;
+  const cat = byCatEl.value || '';
+  const q = qEl.value.toLowerCase().trim();
+
+  return list.filter(e=>{
+    const d = e.createdAt?.toDate ? e.createdAt.toDate() : (e.createdAt ? new Date(e.createdAt) : null);
+    if(from && (!d || d < from)) return false;
+    if(to && (!d || d > to)) return false;
+    if(cat && e.category !== cat) return false;
+    if(q && !e.text.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function render(data){
+  const filt = applyFilters(data);
+  listEl.innerHTML='';
+  if(!filt.length){
+    listEl.innerHTML='<div class="item" style="border-left-color:var(--purple)">No hay notas para los filtros actuales.</div>';
+    return;
+  }
+  for(const e of filt){
+    const date = toLocal(e.createdAt);
+    const wrap=document.createElement('article');
+    wrap.className='item';
+    wrap.style.borderLeftColor=`var(--${e.color||'yellow'})`;
+    wrap.innerHTML=`
+      <div class="meta">
+        <span class="tag">${labelFromCat(e.category)}</span>
+        <span>·</span>
+        <time datetime="${date.iso}">${date.pretty}</time>
+      </div>
+      <div style="white-space:pre-wrap; margin-top:6px">${escapeHtml(e.text)}</div>
+    `;
+    listEl.appendChild(wrap);
+  }
+}
+
+// El botó "Procesar" només re-renderitza amb el darrer snapshot
+document.getElementById('applyFiltersBtn').onclick = () => render(allEntries);
+
+// ===== DESCÀRREGA PDF (respecta els filtres visuals) =====
+downloadPdfBtn.onclick = async ()=>{
+  const user = auth.currentUser; 
+  if(!user){ alert('Inicia sesión primero'); return; }
+
+  try{
+    const { jsPDF } = window.jspdf || {};
+    if(!jsPDF){ alert('No se pudo cargar jsPDF. Revisa la conexión.'); return; }
+
+    const rows = applyFilters(allEntries);
+    if(!rows.length){ alert('No hay notas para exportar con los filtros actuales.'); return; }
+
+    const doc = new jsPDF({ unit:'mm', format:'a4' });
+    const marginL = 14, maxW = 196 - marginL;
+    let y = 14;
+
+    for(const e of rows){
+      const dPretty = toLocal(e.createdAt).pretty;
+      const header = `[${dPretty}] (${labelFromCat(e.category)})`;
+
+      // xapeta de color
+      const [r,g,b] = colorToRGB(e.color);
+      doc.setFillColor(r,g,b);
+      doc.rect(10, y-3.5, 2, 2, 'F');
+
+      // títol
+      doc.setTextColor(0,0,0);
+      doc.setFontSize(11);
+      doc.text(header, marginL, y);
+      y += 6;
+
+      // cos
+      doc.setFontSize(10);
+      const lines = doc.splitTextToSize(e.text || '', maxW);
+      for(const line of lines){
+        if(y > 280){ doc.addPage(); y = 14; }
+        doc.text(line, marginL, y);
+        y += 5;
+      }
+      y += 4;
+      if(y > 280){ doc.addPage(); y = 14; }
+    }
+
+    doc.save('mi_diario_salud.pdf');
+  }catch(err){
+    console.error('PDF error:', err);
+    alert('No se pudo generar el PDF: ' + (err?.message || err));
+  }
+};
+
+function colorToRGB(name){
+  // Tons una mica més sobris perquè el text es llegeixi bé
+  switch(name){
+    case 'yellow': return [223, 191, 20];
+    case 'green':  return [46, 160, 100];
+    case 'blue':   return [54, 125, 210];
+    case 'purple': return [156, 80, 200];
+    default:       return [0,0,0];
+  }
+}
+</script>
+</body>
+</html>
