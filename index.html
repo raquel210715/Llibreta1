@@ -200,16 +200,16 @@ saveBtn.onclick=async ()=>{
   const user = auth.currentUser; if(!user){ alert('Inicia sesión primero'); return; }
   try{
     // data triada per l’usuari
-const customDateEl = document.getElementById('customDate');
-let createdAt;
+    const customDateEl = document.getElementById('customDate');
+    let createdAt;
 
-if (customDateEl.value) {
-  // Si l’usuari ha posat una data, la guardem com Date
-  createdAt = new Date(customDateEl.value + "T12:00:00"); 
-} else {
-  // Si no, usem serverTimestamp (ara mateix)
-  createdAt = serverTimestamp();
-}
+    if (customDateEl.value) {
+      // Si l’usuari ha posat una data, la guardem com Date
+      createdAt = new Date(customDateEl.value + "T12:00:00"); 
+    } else {
+      // Si no, usem serverTimestamp (ara mateix)
+      createdAt = serverTimestamp();
+    }
     entryEl.value=''; customDateEl.value='';
   }catch(e){ alert('Error al guardar: '+e.message); }
 };
