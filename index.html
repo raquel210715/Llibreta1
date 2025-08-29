@@ -195,41 +195,31 @@ function startListening(uid){
   });
 }
 
+// ====================== BOTÓ GUARDAR ======================
 saveBtn.onclick = async () => {
   const text = entryEl.value.trim();
-  if (!text) {
-    alert('Escribe algo antes de guardar');
-    return;
-  }
+  if(!text){ alert('Escribe algo antes de guardar'); return; }
 
   const user = auth.currentUser;
-  if (!user) {
-    alert('Inicia sesión primero');
-    return;
-  }
+  if(!user){ alert('Inicia sesión primero'); return; }
 
   try {
-    if (editingId) {
-      // 📝 Estem editant un registre existent
+    if(editingId){
+      // Editar registre existent
       const { updateDoc, doc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
-      await updateDoc(doc(db, "entries", editingId), {
+      await updateDoc(doc(db,"entries",editingId), {
         text: text,
         color: current.color,
         category: current.category
       });
       editingId = null; // tornem a mode "crear"
     } else {
-      // ➕ Nou registre
+      // Crear nova nota
       const customDateEl = document.getElementById('customDate');
-      let createdAt;
-      if (customDateEl.value) {
-        createdAt = new Date(customDateEl.value + "T12:00:00");
-      } else {
-        createdAt = new Date();
-      }
+      let createdAt = customDateEl.value ? new Date(customDateEl.value+"T12:00:00") : new Date();
 
       const { addDoc, collection, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
-      await addDoc(collection(db, 'entries'), {
+      await addDoc(collection(db,'entries'), {
         uid: user.uid,
         text: text,
         color: current.color,
@@ -244,7 +234,7 @@ saveBtn.onclick = async () => {
     document.getElementById('customDate').value = '';
     pal[0].click(); // reset a groc
 
-  } catch (e) {
+  } catch(e){
     alert('Error al guardar: ' + e.message);
   }
 };
@@ -289,6 +279,7 @@ function applyFilters(list){
   });
 }
 
+// ====================== RENDER + EDIT + DELETE ======================
 function render(data){
   const filt = applyFilters(data);
   listEl.innerHTML='';
@@ -296,24 +287,54 @@ function render(data){
     listEl.innerHTML='<div class="item" style="border-left-color:var(--purple)">No hay notas para los filtros actuales.</div>';
     return;
   }
+
   for(const e of filt){
     const date = toLocal(e.createdAt);
     const wrap=document.createElement('article');
     wrap.className='item';
     wrap.style.borderLeftColor=`var(--${e.color||'yellow'})`;
     wrap.innerHTML=`
-  <div class="meta">
-    <span class="tag">${labelFromCat(e.category)}</span>
-    <span>·</span>
-    <time datetime="${date.iso}">${date.pretty}</time>
-    <button data-id="${e.id}" class="editBtn btn ghost" style="margin-left:auto; font-size:12px; padding:4px 8px">✏️ Editar</button>
-    <button data-id="${e.id}" class="delBtn btn secondary" style="font-size:12px; padding:4px 8px">🗑️ Eliminar</button>
-  </div>
-  <div style="white-space:pre-wrap; margin-top:6px">${escapeHtml(e.text)}</div>
-`;
+      <div class="meta">
+        <span class="tag">${labelFromCat(e.category)}</span>
+        <span>·</span>
+        <time datetime="${date.iso}">${date.pretty}</time>
+        <button data-id="${e.id}" class="editBtn btn ghost" style="margin-left:auto; font-size:12px; padding:4px 8px">✏️ Editar</button>
+        <button data-id="${e.id}" class="delBtn btn secondary" style="font-size:12px; padding:4px 8px">🗑️ Eliminar</button>
+      </div>
+      <div style="white-space:pre-wrap; margin-top:6px">${escapeHtml(e.text)}</div>
+    `;
     listEl.appendChild(wrap);
   }
+
+  // Afegim listeners a tots els botons Editar
+  listEl.querySelectorAll('.editBtn').forEach(btn=>{
+    btn.onclick = ()=>{
+      const id = btn.dataset.id;
+      const entry = data.find(x=>x.id===id);
+      if(!entry) return;
+
+      entryEl.value = entry.text;
+      editingId = id;
+
+      const sw = pal.find(x=>x.dataset.color===entry.color);
+      if(sw) sw.click();
+    };
+  });
+
+  // Afegim listeners a tots els botons Eliminar
+  listEl.querySelectorAll('.delBtn').forEach(btn=>{
+    btn.onclick = async ()=>{
+      if(!confirm("Vols eliminar aquesta nota?")) return;
+      try {
+        const { deleteDoc, doc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+        await deleteDoc(doc(db,"entries",btn.dataset.id));
+      } catch(e){
+        alert("Error eliminant: "+e.message);
+      }
+    };
+  });
 }
+
 
 // El botó "Procesar" només re-renderitza amb el darrer snapshot
 document.getElementById('applyFiltersBtn').onclick = () => render(allEntries);
