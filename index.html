@@ -136,6 +136,7 @@ const pal = Array.from(document.querySelectorAll('.sw'));
 let current = { color:'yellow', category:'comida' };
 let unsub = null;
 let allEntries = []; // <-- memòria del darrer snapshot
+let editingId = null; // quan editem, aquí guardem l'ID
 
 pal.forEach(sw => {
   sw.addEventListener('click', ()=>{ 
@@ -208,36 +209,46 @@ saveBtn.onclick = async () => {
   }
 
   try {
-    // Obtenim la data triada per l'usuari
-    const customDateEl = document.getElementById('customDate');
-    let createdAt;
-
-    if (customDateEl.value) {
-      // Si l’usuari ha posat una data, la convertim a Date amb hora 12:00
-      createdAt = new Date(customDateEl.value + "T12:00:00");
+    if (editingId) {
+      // 📝 Estem editant un registre existent
+      const { updateDoc, doc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+      await updateDoc(doc(db, "entries", editingId), {
+        text: text,
+        color: current.color,
+        category: current.category
+      });
+      editingId = null; // tornem a mode "crear"
     } else {
-      // Si no, usem serverTimestamp
-      createdAt = serverTimestamp();
+      // ➕ Nou registre
+      const customDateEl = document.getElementById('customDate');
+      let createdAt;
+      if (customDateEl.value) {
+        createdAt = new Date(customDateEl.value + "T12:00:00");
+      } else {
+        createdAt = new Date();
+      }
+
+      const { addDoc, collection, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+      await addDoc(collection(db, 'entries'), {
+        uid: user.uid,
+        text: text,
+        color: current.color,
+        category: current.category,
+        createdAt: createdAt,
+        savedAt: serverTimestamp()
+      });
     }
 
-    // Afegim la nota a Firestore
-    await addDoc(collection(db, 'entries'), {
-      uid: user.uid,
-      text: text,
-      color: current.color,
-      category: current.category,
-      createdAt: createdAt
-    });
-
-    // Netegem camps
+    // Neteja formulari
     entryEl.value = '';
-    customDateEl.value = '';
+    document.getElementById('customDate').value = '';
+    pal[0].click(); // reset a groc
 
   } catch (e) {
     alert('Error al guardar: ' + e.message);
   }
 };
-
+  
 clearBtn.onclick=()=>entryEl.value='';
 
 function labelFromCat(c){
@@ -291,13 +302,15 @@ function render(data){
     wrap.className='item';
     wrap.style.borderLeftColor=`var(--${e.color||'yellow'})`;
     wrap.innerHTML=`
-      <div class="meta">
-        <span class="tag">${labelFromCat(e.category)}</span>
-        <span>·</span>
-        <time datetime="${date.iso}">${date.pretty}</time>
-      </div>
-      <div style="white-space:pre-wrap; margin-top:6px">${escapeHtml(e.text)}</div>
-    `;
+  <div class="meta">
+    <span class="tag">${labelFromCat(e.category)}</span>
+    <span>·</span>
+    <time datetime="${date.iso}">${date.pretty}</time>
+    <button data-id="${e.id}" class="editBtn btn ghost" style="margin-left:auto; font-size:12px; padding:4px 8px">✏️ Editar</button>
+    <button data-id="${e.id}" class="delBtn btn secondary" style="font-size:12px; padding:4px 8px">🗑️ Eliminar</button>
+  </div>
+  <div style="white-space:pre-wrap; margin-top:6px">${escapeHtml(e.text)}</div>
+`;
     listEl.appendChild(wrap);
   }
 }
@@ -346,6 +359,36 @@ downloadPdfBtn.onclick = async ()=>{
       }
       y += 4;
       if(y > 280){ doc.addPage(); y = 14; }
+
+      // Afegim listeners a tots els botons Editar
+listEl.querySelectorAll('.editBtn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const id = btn.dataset.id;
+    const entry = data.find(x=>x.id===id);
+    if (!entry) return;
+
+    // Omplim editor
+    entryEl.value = entry.text;
+    editingId = id;
+
+    // Seleccionem el color actual
+    const sw = pal.find(x=>x.dataset.color===entry.color);
+    if (sw) sw.click();
+  });
+});
+
+// Afegim listeners a tots els botons Eliminar
+listEl.querySelectorAll('.delBtn').forEach(btn=>{
+  btn.addEventListener('click', async ()=>{
+    if (!confirm("Vols eliminar aquesta nota?")) return;
+    try {
+      const { deleteDoc, doc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+      await deleteDoc(doc(db, "entries", btn.dataset.id));
+    } catch(e){
+      alert("Error eliminant: " + e.message);
+    }
+  });
+});
     }
 
     doc.save('mi_diario_salud.pdf');
